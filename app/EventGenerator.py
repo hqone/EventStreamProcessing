@@ -34,6 +34,10 @@ class EventGenerator:
 
     @staticmethod
     def parse_arguments():
+        """
+        A static function to parse CLI arguments.
+        :return:
+        """
         ap = argparse.ArgumentParser()
         ap.add_argument("-e", "--num_of_events", required=True, type=int, choices=range(0, 100001),
                         metavar="[0-100000]", help="how many event you want to generate")

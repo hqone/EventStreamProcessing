@@ -18,7 +18,7 @@ class EventReceiver:
     @log_performance
     def run(self):
         """
-        Eternal loop for consume packages of payloads from Kafka, then save them in batch to storage.
+        Eternal loop for consume computed payloads from Kafka, then save them in storage.
         """
         while True:
             try:

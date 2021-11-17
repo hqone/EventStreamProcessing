@@ -5,8 +5,13 @@ from pyspark.sql.types import StringType, IntegerType, StructType, StructField
 
 from app.Resources import Resources
 
+"""
+PySpark implementation of read kafka stream, aggregate data and write it back to kafka on other stream.
+"""
+# Start Spark Session
 spark = SparkSession.builder.appName("StructuredNetworkWordCount").getOrCreate()
 
+# Read kafka stream
 df = (spark
       .readStream
       .format("kafka")
@@ -15,6 +20,7 @@ df = (spark
       # .option("startingOffsets", "earliest")  # start from beginning
       .load())
 
+# Map JSON Event structure
 user_schema = StructType([
     StructField("imię", StringType(), True),
     StructField("nazwisko", StringType(), True),
@@ -22,6 +28,7 @@ user_schema = StructType([
     StructField("miasto zamieszkania", StringType(), True),
 ])
 
+# Select json event to columns.
 df = (
     df.selectExpr("CAST(value as string)", "timestamp")
         .select(from_json(col("value"), user_schema).alias("json_value"), "timestamp")
@@ -36,6 +43,7 @@ df = (
 
 )
 
+# Aggregate data with usage of time windows and watermark.
 windowedAvg = (
     df.withWatermark("timestamp", "2 minutes")
         .groupBy(window(col("timestamp"), "1 minute").alias('eventTimeWindow'), col('miasto zamieszkania'))
@@ -48,6 +56,7 @@ windowedAvg = (
     )
 )
 
+# Write to console for debug, this is not necessary.
 qk = windowedAvg.selectExpr("CAST(eventTime AS STRING) AS key", "to_json(struct(*)) AS value") \
     .writeStream \
     .outputMode('update') \
@@ -55,6 +64,7 @@ qk = windowedAvg.selectExpr("CAST(eventTime AS STRING) AS key", "to_json(struct(
     .option('truncate', 'true') \
     .start()
 
+# Write back to kafka aggregated data.
 query = windowedAvg.selectExpr("CAST(eventTime AS STRING) AS key", "to_json(struct(*)) AS value") \
     .writeStream \
     .format('kafka') \
@@ -64,4 +74,5 @@ query = windowedAvg.selectExpr("CAST(eventTime AS STRING) AS key", "to_json(stru
     .outputMode("update") \
     .start()
 
+# Make it run.
 query.awaitTermination()
